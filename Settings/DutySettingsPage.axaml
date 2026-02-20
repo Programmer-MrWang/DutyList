@@ -1,0 +1,92 @@
+<ci:SettingsPageBase
+    x:Class="DutyListPlugin.Settings.DutySettingsPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ci="clr-namespace:ClassIsland.Core.Abstractions.Controls;assembly=ClassIsland.Core"
+    xmlns:models="clr-namespace:DutyListPlugin.Models"
+    xmlns:conv="clr-namespace:DutyListPlugin.Converters">
+
+  <ci:SettingsPageBase.Resources>
+    <conv:StringToColorConverter x:Key="StringToColor"/>
+  </ci:SettingsPageBase.Resources>
+
+  <ci:SettingsPageBase.Content>
+    <ScrollViewer>
+      <StackPanel Margin="16" Spacing="8">
+
+        <TextBlock Text="选择星期" FontSize="15" FontWeight="Bold"/>
+        <ComboBox Name="WeekSelector"
+                  Width="160"
+                  HorizontalAlignment="Left"
+                  SelectionChanged="OnWeekChanged"/>
+
+        <ItemsControl Name="TimeSlotList">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type models:DutyTimeSlot}">
+              <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4"
+                      Padding="12" Margin="0,0,0,12">
+                <StackPanel Spacing="6">
+
+                  <!-- 时间段标题行 -->
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="开始：" VerticalAlignment="Center"/>
+                    <TextBox Width="70" Text="{Binding StartText}" Watermark="08:00"/>
+                    <TextBlock Text="结束：" VerticalAlignment="Center"/>
+                    <TextBox Width="70" Text="{Binding EndText}"   Watermark="12:00"/>
+                    <Button Content="删除时间段"
+                            Foreground="Red"
+                            Tag="{Binding}"
+                            Click="RemoveTimeSlot"/>
+                  </StackPanel>
+
+                  <!-- 项目列表 -->
+                  <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type models:DutyItem}">
+                        <StackPanel Spacing="4" Margin="0,3">
+
+                          <!-- 第一行：项目名 + 人员 -->
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBox Width="100" Text="{Binding Project}" Watermark="项目名称"/>
+                            <TextBox Width="68"  Text="{Binding Person1}" Watermark="人员1"/>
+                            <TextBox Width="68"  Text="{Binding Person2}" Watermark="人员2"/>
+                            <TextBox Width="68"  Text="{Binding Person3}" Watermark="人员3"/>
+                            <Button Content="✕" Tag="{Binding}" Click="RemoveItem" Margin="4,0,0,0"/>
+                          </StackPanel>
+
+                          <!-- 第二行：颜色选取面板 -->
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="项目颜色：" VerticalAlignment="Center" FontSize="12"/>
+                            <!-- ColorPicker：下拉式拾色器，点击色块展开完整选色面板 -->
+                            <ColorPicker
+                                Color="{Binding Color, Converter={StaticResource StringToColor}, Mode=TwoWay}"
+                                IsAlphaEnabled="False"
+                                HorizontalAlignment="Left"/>
+                          </StackPanel>
+
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                  <Button Content="＋ 添加项目"
+                          HorizontalAlignment="Left"
+                          Tag="{Binding}"
+                          Click="AddItem"/>
+
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="＋ 添加时间段" Click="AddTimeSlot"/>
+          <Button Content="💾 保存配置"   Click="Save"/>
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+  </ci:SettingsPageBase.Content>
+
+</ci:SettingsPageBase>

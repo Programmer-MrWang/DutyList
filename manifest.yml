@@ -1,0 +1,7 @@
+id: duty.list.plugin
+name: 值日生名单
+version: 1.0.0.0
+apiVersion: 2.0.0.0
+entranceAssembly: DutyListPlugin.dll
+description: 显示可配置的值日生名单组件，支持按星期、按时间段配置多组人员
+author: You
