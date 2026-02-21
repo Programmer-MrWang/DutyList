@@ -46,16 +46,4 @@ ClassIsland 插件 · 在主界面实时显示当前时段的值日生信息
 1. 进入 **应用设置 → 组件**
 2. 在组件库中找到「值日生名单」
 3. 将其拖动到主界面的任意插槽中
-
-## 开发信息
-
-| 项目 | 内容 |
-|---|---|
-| 插件 ID | `duty.list.plugin` |
-| 目标 API 版本 | `2.0.0.0` |
-| 运行时 | .NET 8 / Avalonia |
-| 配置文件路径 | `%AppData%\ClassIsland\Plugins\duty.list.plugin\duty.json` |
-
-## 许可证
-
-MIT License
+注意：仅ClassIsland 2.0.0.2或更高版本可用
