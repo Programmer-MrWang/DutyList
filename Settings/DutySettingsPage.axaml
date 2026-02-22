@@ -1,92 +1,365 @@
 <ci:SettingsPageBase
+
     x:Class="DutyListPlugin.Settings.DutySettingsPage"
+
     xmlns="https://github.com/avaloniaui"
+
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
     xmlns:ci="clr-namespace:ClassIsland.Core.Abstractions.Controls;assembly=ClassIsland.Core"
+
     xmlns:models="clr-namespace:DutyListPlugin.Models"
+
     xmlns:conv="clr-namespace:DutyListPlugin.Converters">
 
+
+
   <ci:SettingsPageBase.Resources>
+
     <conv:StringToColorConverter x:Key="StringToColor"/>
+
   </ci:SettingsPageBase.Resources>
 
-  <ci:SettingsPageBase.Content>
-    <ScrollViewer>
-      <StackPanel Margin="16" Spacing="8">
 
-        <TextBlock Text="选择星期" FontSize="15" FontWeight="Bold"/>
-        <ComboBox Name="WeekSelector"
-                  Width="160"
-                  HorizontalAlignment="Left"
-                  SelectionChanged="OnWeekChanged"/>
 
-        <ItemsControl Name="TimeSlotList">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type models:DutyTimeSlot}">
-              <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4"
-                      Padding="12" Margin="0,0,0,12">
-                <StackPanel Spacing="6">
+  <!-- ══════════════ Tab 主界面 ══════════════ -->
 
-                  <!-- 时间段标题行 -->
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="开始：" VerticalAlignment="Center"/>
-                    <TextBox Width="70" Text="{Binding StartText}" Watermark="08:00"/>
-                    <TextBlock Text="结束：" VerticalAlignment="Center"/>
-                    <TextBox Width="70" Text="{Binding EndText}"   Watermark="12:00"/>
-                    <Button Content="删除时间段"
-                            Foreground="Red"
-                            Tag="{Binding}"
-                            Click="RemoveTimeSlot"/>
-                  </StackPanel>
+  <TabControl>
 
-                  <!-- 项目列表 -->
-                  <ItemsControl ItemsSource="{Binding Items}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate DataType="{x:Type models:DutyItem}">
-                        <StackPanel Spacing="4" Margin="0,3">
 
-                          <!-- 第一行：项目名 + 人员 -->
-                          <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBox Width="100" Text="{Binding Project}" Watermark="项目名称"/>
-                            <TextBox Width="68"  Text="{Binding Person1}" Watermark="人员1"/>
-                            <TextBox Width="68"  Text="{Binding Person2}" Watermark="人员2"/>
-                            <TextBox Width="68"  Text="{Binding Person3}" Watermark="人员3"/>
-                            <Button Content="✕" Tag="{Binding}" Click="RemoveItem" Margin="4,0,0,0"/>
-                          </StackPanel>
 
-                          <!-- 第二行：颜色选取面板 -->
-                          <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="项目颜色：" VerticalAlignment="Center" FontSize="12"/>
-                            <!-- ColorPicker：下拉式拾色器，点击色块展开完整选色面板 -->
-                            <ColorPicker
-                                Color="{Binding Color, Converter={StaticResource StringToColor}, Mode=TwoWay}"
-                                IsAlphaEnabled="False"
-                                HorizontalAlignment="Left"/>
-                          </StackPanel>
+    <!-- ┌─────────────── 值日表 ───────────────┐ -->
 
-                        </StackPanel>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
+    <TabItem Header="📋 值日表">
 
-                  <Button Content="＋ 添加项目"
-                          HorizontalAlignment="Left"
-                          Tag="{Binding}"
-                          Click="AddItem"/>
+      <ScrollViewer>
+
+        <StackPanel Margin="16" Spacing="12">
+
+
+
+          <!-- 轮换总设置 -->
+
+          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
+
+            <StackPanel Spacing="8">
+
+              <TextBlock Text="间隔轮换设置" FontSize="15" FontWeight="Bold"/>
+
+              <TextBlock Name="StatusLabel" FontSize="13" Foreground="#AAFFFFFF" TextWrapping="Wrap"/>
+
+              <StackPanel Orientation="Horizontal" Spacing="12" FlowDirection="LeftToRight">
+
+                <StackPanel Spacing="4">
+
+                  <TextBlock Text="第一批起始日期" FontSize="12" Foreground="#AAFFFFFF"/>
+
+                  <DatePicker Name="StartDatePicker" SelectedDateChanged="OnStartDateChanged"/>
 
                 </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
 
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="＋ 添加时间段" Click="AddTimeSlot"/>
-          <Button Content="💾 保存配置"   Click="Save"/>
+                <StackPanel Spacing="4">
+
+                  <TextBlock Text="每批持续（天）" FontSize="12" Foreground="#AAFFFFFF"/>
+
+                  <!-- 整数输入，FormatString="0" 禁止小数显示，Increment=1 每次步进1天 -->
+
+                  <NumericUpDown Name="PeriodDaysSpin"
+
+                                 Minimum="1" Maximum="365"
+
+                                 Width="110"
+
+                                 Increment="1"
+
+                                 FormatString="0"/>
+
+                </StackPanel>
+
+              </StackPanel>
+
+            </StackPanel>
+
+          </Border>
+
+
+
+          <!-- 批次管理 -->
+
+          <StackPanel Spacing="6">
+
+            <TextBlock Text="批次管理" FontSize="15" FontWeight="Bold"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+
+              <ComboBox Name="GroupSelector" MinWidth="160"
+
+                        SelectionChanged="OnGroupChanged"
+
+                        PlaceholderText="选择批次…"/>
+
+              <Button Content="＋ 新建批次" Click="AddGroup"/>
+
+              <Button Content="重命名"       Click="RenameGroup"/>
+
+              <Button Content="删除批次" Foreground="Red" Click="RemoveGroup"/>
+
+            </StackPanel>
+
+          </StackPanel>
+
+
+
+          <!-- 当前批次编辑区 -->
+
+          <StackPanel Name="GroupEditor" Spacing="8" IsVisible="False">
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+
+              <TextBlock Text="选择星期" FontSize="13" VerticalAlignment="Center"/>
+
+              <ComboBox Name="WeekSelector" Width="120" SelectionChanged="OnWeekChanged"/>
+
+            </StackPanel>
+
+
+
+            <ItemsControl Name="TimeSlotList">
+
+              <ItemsControl.ItemTemplate>
+
+                <DataTemplate DataType="{x:Type models:DutyTimeSlot}">
+
+                  <Border BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="4"
+
+                          Padding="12" Margin="0,0,0,10">
+
+                    <StackPanel Spacing="6">
+
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+
+                        <TextBlock Text="开始：" VerticalAlignment="Center"/>
+
+                        <TextBox Width="70" Text="{Binding StartText}" Watermark="08:00"/>
+
+                        <TextBlock Text="结束：" VerticalAlignment="Center"/>
+
+                        <TextBox Width="70" Text="{Binding EndText}"   Watermark="12:00"/>
+
+                        <Button Content="删除时间段" Foreground="Red"
+
+                                Tag="{Binding}" Click="RemoveTimeSlot"/>
+
+                      </StackPanel>
+
+                      <ItemsControl ItemsSource="{Binding Items}">
+
+                        <ItemsControl.ItemTemplate>
+
+                          <DataTemplate DataType="{x:Type models:DutyItem}">
+
+                            <StackPanel Spacing="4" Margin="0,3">
+
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+
+                                <TextBox Width="100" Text="{Binding Project}" Watermark="项目名称"/>
+
+                                <TextBox Width="68"  Text="{Binding Person1}" Watermark="人员1"/>
+
+                                <TextBox Width="68"  Text="{Binding Person2}" Watermark="人员2"/>
+
+                                <TextBox Width="68"  Text="{Binding Person3}" Watermark="人员3"/>
+
+                                <Button Content="✕" Tag="{Binding}" Click="RemoveItem" Margin="4,0,0,0"/>
+
+                              </StackPanel>
+
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+
+                                <TextBlock Text="项目颜色：" VerticalAlignment="Center" FontSize="12"/>
+
+                                <ColorPicker Color="{Binding Color, Converter={StaticResource StringToColor}, Mode=TwoWay}"
+
+                                             IsAlphaEnabled="False"/>
+
+                              </StackPanel>
+
+                            </StackPanel>
+
+                          </DataTemplate>
+
+                        </ItemsControl.ItemTemplate>
+
+                      </ItemsControl>
+
+                      <Button Content="＋ 添加项目" HorizontalAlignment="Left"
+
+                              Tag="{Binding}" Click="AddItem"/>
+
+                    </StackPanel>
+
+                  </Border>
+
+                </DataTemplate>
+
+              </ItemsControl.ItemTemplate>
+
+            </ItemsControl>
+
+
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+
+              <Button Content="＋ 添加时间段" Click="AddTimeSlot"/>
+
+              <Button Content="💾 保存配置"   Click="Save"/>
+
+            </StackPanel>
+
+          </StackPanel>
+
+
+
         </StackPanel>
 
-      </StackPanel>
-    </ScrollViewer>
-  </ci:SettingsPageBase.Content>
+      </ScrollViewer>
+
+    </TabItem>
+
+
+
+    <!-- ┌─────────────── 设置 ───────────────┐ -->
+
+    <TabItem Header="⚙️ 设置">
+
+      <ScrollViewer>
+
+        <StackPanel Margin="16" Spacing="16">
+
+
+
+          <!-- 提醒设置 -->
+
+          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
+
+            <StackPanel Spacing="10">
+
+              <TextBlock Text="提醒设置" FontSize="15" FontWeight="Bold"/>
+
+
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+
+                <CheckBox Name="EnableReminderBox"
+
+                          Content="在值日时段开始时发出提醒"
+
+                          IsChecked="{Binding EnableReminder}"
+
+                          Checked="OnReminderChanged"
+
+                          Unchecked="OnReminderChanged"/>
+
+              </StackPanel>
+
+
+
+              <StackPanel Orientation="Horizontal" Spacing="10"
+
+                          IsEnabled="{Binding EnableReminder}">
+
+                <CheckBox Name="EnableSoundBox"
+
+                          Content="播放提醒语音（TTS 朗读值日内容）"
+
+                          IsChecked="{Binding EnableReminderSound}"
+
+                          Checked="OnSoundChanged"
+
+                          Unchecked="OnSoundChanged"/>
+
+              </StackPanel>
+
+            </StackPanel>
+
+          </Border>
+
+
+
+          <!-- 数据管理 -->
+
+          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
+
+            <StackPanel Spacing="10">
+
+              <TextBlock Text="数据管理" FontSize="15" FontWeight="Bold"/>
+
+
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <Button Content="📤 导出值日表"
+
+                        Click="ExportConfig"
+
+                        ToolTip.Tip="将当前配置导出为 JSON 文件"/>
+
+                <Button Content="🔄 重置所有配置"
+
+                        Foreground="Red"
+
+                        Click="ResetConfig"
+
+                        ToolTip.Tip="清空所有批次和设置，不可恢复！"/>
+
+              </StackPanel>
+
+
+
+              <TextBlock Name="ExportResultLabel"
+
+                         FontSize="12"
+
+                         Foreground="#AAFFFFFF"
+
+                         TextWrapping="Wrap"
+
+                         IsVisible="False"/>
+
+            </StackPanel>
+
+          </Border>
+
+
+
+          <!-- 关于 -->
+
+          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
+
+            <StackPanel Spacing="4">
+
+              <TextBlock Text="关于" FontSize="15" FontWeight="Bold"/>
+
+              <TextBlock Text="值日生名单插件 v1.1" FontSize="13"/>
+
+              <TextBlock Text="支持间隔轮换、时段提醒、自定义颜色。" FontSize="12" Foreground="#AAFFFFFF"/>
+
+            </StackPanel>
+
+          </Border>
+
+
+
+        </StackPanel>
+
+      </ScrollViewer>
+
+    </TabItem>
+
+
+
+  </TabControl>
+
+
 
 </ci:SettingsPageBase>

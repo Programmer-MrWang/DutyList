@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>  <!-- Avalonia 不需要 -windows 后缀 -->
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,7 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 使用 2.x SDK 匹配 ClassIsland 2.0 -->
     <PackageReference Include="ClassIsland.PluginSdk" Version="2.0.0.2">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
@@ -19,6 +18,14 @@
 
   <ItemGroup>
     <None Include="manifest.yml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <!-- 插件图标：256×256 PNG，构建时自动复制到输出目录 -->
+    <None Include="icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <!-- README 文档 -->
+    <None Include="README.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

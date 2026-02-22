@@ -5,6 +5,7 @@ using ClassIsland.Core.Extensions.Registry;
 using ClassIsland.Shared.Helpers;
 using DutyListPlugin.Components;
 using DutyListPlugin.Models;
+using DutyListPlugin.Notifications;
 using DutyListPlugin.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,6 +26,9 @@ public class Plugin : PluginBase
 
         services.AddSettingsPage<DutySettingsPage>();
         services.AddComponent<DutyDisplayComponent>();
+
+        // 注册提醒提供方 —— 在值日时段开始时发出 ClassIsland 提醒
+        services.AddNotificationProvider<DutyNotificationProvider>();
     }
 
     public static void Save()

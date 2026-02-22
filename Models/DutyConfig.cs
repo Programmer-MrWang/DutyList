@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -8,42 +8,96 @@ namespace DutyListPlugin.Models;
 
 public class DutyConfig : INotifyPropertyChanged
 {
-    private Dictionary<WeekDay, ObservableCollection<DutyTimeSlot>> _weekConfig = new();
-
-    public Dictionary<WeekDay, ObservableCollection<DutyTimeSlot>> WeekConfig
+    // ── 批次列表 ─────────────────────────────────────────────────────────
+    private ObservableCollection<RotationGroup> _groups = new();
+    public ObservableCollection<RotationGroup> Groups
     {
-        get => _weekConfig;
+        get => _groups;
         set
         {
-            // 取消旧集合的订阅，避免内存泄漏
-            foreach (var col in _weekConfig.Values)
-                col.CollectionChanged -= OnCollectionChanged;
-
-            _weekConfig = value;
-
-            // ✅ 修复 Bug3：订阅每个集合的 CollectionChanged，
-            //    使用户在 UI 增删时间段/人员项时也能触发自动保存，
-            //    而不是只有整个 WeekConfig 被整体替换时才触发。
-            foreach (var col in value.Values)
-                col.CollectionChanged += OnCollectionChanged;
-
+            _groups.CollectionChanged -= OnAnyChanged;
+            _groups = value;
+            _groups.CollectionChanged += OnAnyChanged;
             OnPropertyChanged();
         }
     }
 
-    // ✅ 新增：在外部直接对 WeekConfig[key] 赋值（字典 set 但不触发属性通知）时，
-    //    也需要将新集合纳入监听。调用此方法来完成注册。
-    public void SubscribeCollection(ObservableCollection<DutyTimeSlot> collection)
+    // ── 轮换参数 ─────────────────────────────────────────────────────────
+
+    /// <summary>第一批次生效的起始日期（当天0点）。</summary>
+    private DateTime _rotationStartDate = DateTime.Today;
+    public DateTime RotationStartDate
     {
-        collection.CollectionChanged -= OnCollectionChanged; // 防重复订阅
-        collection.CollectionChanged += OnCollectionChanged;
+        get => _rotationStartDate;
+        set { _rotationStartDate = value.Date; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
     }
 
-    private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        => OnPropertyChanged(nameof(WeekConfig));
+    /// <summary>每个批次持续的天数（整数，≥1）。</summary>
+    private int _rotationPeriodDays = 7;
+    public int RotationPeriodDays
+    {
+        get => _rotationPeriodDays;
+        set { _rotationPeriodDays = Math.Max(1, value); OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+    }
+
+    // ── 提醒设置 ─────────────────────────────────────────────────────────
+
+    private bool _enableReminder = true;
+    public bool EnableReminder
+    {
+        get => _enableReminder;
+        set { _enableReminder = value; OnPropertyChanged(); }
+    }
+
+    private bool _enableReminderSound = true;
+    public bool EnableReminderSound
+    {
+        get => _enableReminderSound;
+        set { _enableReminderSound = value; OnPropertyChanged(); }
+    }
+
+    // ── 当前批次计算 ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 根据今天日期返回当前应显示的批次，Groups 为空时返回 null。
+    /// </summary>
+    public RotationGroup? GetCurrentGroup()
+    {
+        if (Groups.Count == 0) return null;
+        var daysPassed = Math.Max(0, (int)(DateTime.Today - RotationStartDate).TotalDays);
+        var idx = (daysPassed / RotationPeriodDays) % Groups.Count;
+        return Groups[idx];
+    }
+
+    /// <summary>给设置页显示的当前状态摘要。</summary>
+    public string StatusText
+    {
+        get
+        {
+            if (Groups.Count == 0) return "（尚未创建批次）";
+            var daysPassed = Math.Max(0, (int)(DateTime.Today - RotationStartDate).TotalDays);
+            var idx = (daysPassed / RotationPeriodDays) % Groups.Count;
+            var group = Groups[idx];
+            var batchNo    = daysPassed / RotationPeriodDays;
+            var batchStart = RotationStartDate.AddDays(batchNo * RotationPeriodDays);
+            var batchEnd   = batchStart.AddDays(RotationPeriodDays - 1);
+            var daysLeft   = (batchEnd - DateTime.Today).Days + 1;
+            return $"当前：{group.Name}（{batchStart:M/d} – {batchEnd:M/d}，还剩 {daysLeft} 天）";
+        }
+    }
+
+    // ── 订阅集合变更 ─────────────────────────────────────────────────────
+
+    public void SubscribeCollection(ObservableCollection<DutyTimeSlot> col)
+    {
+        col.CollectionChanged -= OnAnyChanged;
+        col.CollectionChanged += OnAnyChanged;
+    }
+
+    private void OnAnyChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(Groups));
 
     public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void OnPropertyChanged([CallerMemberName] string? n = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 }
