@@ -23,8 +23,6 @@ public class DutyConfig : INotifyPropertyChanged
     }
 
     // ── 轮换参数 ─────────────────────────────────────────────────────────
-
-    /// <summary>第一批次生效的起始日期（当天0点）。</summary>
     private DateTime _rotationStartDate = DateTime.Today;
     public DateTime RotationStartDate
     {
@@ -32,7 +30,6 @@ public class DutyConfig : INotifyPropertyChanged
         set { _rotationStartDate = value.Date; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
     }
 
-    /// <summary>每个批次持续的天数（整数，≥1）。</summary>
     private int _rotationPeriodDays = 7;
     public int RotationPeriodDays
     {
@@ -40,8 +37,7 @@ public class DutyConfig : INotifyPropertyChanged
         set { _rotationPeriodDays = Math.Max(1, value); OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
     }
 
-    // ── 提醒设置 ─────────────────────────────────────────────────────────
-
+    // ── 提醒设置（全局）─────────────────────────────────────────────────
     private bool _enableReminder = true;
     public bool EnableReminder
     {
@@ -56,37 +52,74 @@ public class DutyConfig : INotifyPropertyChanged
         set { _enableReminderSound = value; OnPropertyChanged(); }
     }
 
-    // ── 当前批次计算 ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// 根据今天日期返回当前应显示的批次，Groups 为空时返回 null。
-    /// </summary>
-    public RotationGroup? GetCurrentGroup()
+    private string _ttsVoice = "";
+    public string TtsVoice
     {
-        if (Groups.Count == 0) return null;
-        var daysPassed = Math.Max(0, (int)(DateTime.Today - RotationStartDate).TotalDays);
-        var idx = (daysPassed / RotationPeriodDays) % Groups.Count;
-        return Groups[idx];
+        get => _ttsVoice;
+        set { _ttsVoice = value ?? ""; OnPropertyChanged(); }
     }
 
-    /// <summary>给设置页显示的当前状态摘要。</summary>
+    // ── 当前批次 + 天数计算 ───────────────────────────────────────────────
+    /// <summary>
+    /// 返回当前批次及批次内天数（1-based）。
+    /// dayIndex = 0 表示今天是跳过日（无值日）。
+    /// </summary>
+    public (RotationGroup? Group, int DayIndex) GetCurrentGroupAndDay()
+    {
+        if (Groups.Count == 0) return (null, 0);
+
+        var today      = DateTime.Today;
+        var daysPassed = Math.Max(0, (int)(today - RotationStartDate).TotalDays);
+        var batchNo    = daysPassed / RotationPeriodDays;
+        var idx        = batchNo % Groups.Count;
+        var group      = Groups[idx];
+        var batchStart = RotationStartDate.AddDays(batchNo * RotationPeriodDays);
+
+        int dayIndex;
+        if (group.SkipDays.Count > 0)
+        {
+            // 今天是跳过日 → 不显示值日
+            if (group.SkipDays.Contains(today.DayOfWeek))
+                return (group, 0);
+
+            // 从批次起始日到今天（含），累计非跳过天数
+            int counted = 0;
+            for (var d = batchStart; d <= today; d = d.AddDays(1))
+                if (!group.SkipDays.Contains(d.DayOfWeek))
+                    counted++;
+            dayIndex = Math.Max(1, counted);
+        }
+        else
+        {
+            dayIndex = (daysPassed % RotationPeriodDays) + 1;
+        }
+
+        return (group, dayIndex);
+    }
+
+    public RotationGroup? GetCurrentGroup() => GetCurrentGroupAndDay().Group;
+
     public string StatusText
     {
         get
         {
-            if (Groups.Count == 0) return "（尚未创建批次）";
+            var (group, dayIndex) = GetCurrentGroupAndDay();
+            if (group == null) return "（尚未创建批次）";
+
             var daysPassed = Math.Max(0, (int)(DateTime.Today - RotationStartDate).TotalDays);
-            var idx = (daysPassed / RotationPeriodDays) % Groups.Count;
-            var group = Groups[idx];
             var batchNo    = daysPassed / RotationPeriodDays;
             var batchStart = RotationStartDate.AddDays(batchNo * RotationPeriodDays);
             var batchEnd   = batchStart.AddDays(RotationPeriodDays - 1);
             var daysLeft   = (batchEnd - DateTime.Today).Days + 1;
-            return $"当前：{group.Name}（{batchStart:M/d} – {batchEnd:M/d}，还剩 {daysLeft} 天）";
+
+            var skipNote = group.SkipDays.Count > 0
+                ? $"（跳过{group.SkipDays.Count}种日期）"
+                : "";
+
+            var dayNote = dayIndex == 0 ? "今日休息" : $"第{dayIndex}天";
+            return $"当前：{group.Name} {dayNote}{skipNote}  （{batchStart:M/d}–{batchEnd:M/d}，还剩 {daysLeft} 天）";
         }
     }
-
-    // ── 订阅集合变更 ─────────────────────────────────────────────────────
 
     public void SubscribeCollection(ObservableCollection<DutyTimeSlot> col)
     {

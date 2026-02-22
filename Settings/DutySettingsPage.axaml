@@ -1,365 +1,378 @@
 <ci:SettingsPageBase
-
     x:Class="DutyListPlugin.Settings.DutySettingsPage"
-
     xmlns="https://github.com/avaloniaui"
-
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-
     xmlns:ci="clr-namespace:ClassIsland.Core.Abstractions.Controls;assembly=ClassIsland.Core"
-
     xmlns:models="clr-namespace:DutyListPlugin.Models"
-
+    xmlns:local="clr-namespace:DutyListPlugin.Settings"
     xmlns:conv="clr-namespace:DutyListPlugin.Converters">
 
-
-
   <ci:SettingsPageBase.Resources>
-
     <conv:StringToColorConverter x:Key="StringToColor"/>
-
   </ci:SettingsPageBase.Resources>
 
+  <!-- ══ 全局动画样式 ══════════════════════════════════════════════════════ -->
+  <ci:SettingsPageBase.Styles>
 
+    <!-- 卡片淡入上浮（每张延迟不同，产生交错效果） -->
+    <Style Selector="Border.card-1">
+      <Style.Animations>
+        <Animation Duration="0:0:0.35" Delay="0:0:0.05" FillMode="Both" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="0"/> </KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/> </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="Border.card-2">
+      <Style.Animations>
+        <Animation Duration="0:0:0.35" Delay="0:0:0.12" FillMode="Both" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="0"/> </KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/> </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="Border.card-3">
+      <Style.Animations>
+        <Animation Duration="0:0:0.35" Delay="0:0:0.19" FillMode="Both" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="0"/> </KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/> </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="Border.card-4">
+      <Style.Animations>
+        <Animation Duration="0:0:0.35" Delay="0:0:0.26" FillMode="Both" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="0"/> </KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/> </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="StackPanel.card-sp-1">
+      <Style.Animations>
+        <Animation Duration="0:0:0.35" Delay="0:0:0.12" FillMode="Both" Easing="CubicEaseOut">
+          <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="0"/> </KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/> </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
 
-  <!-- ══════════════ Tab 主界面 ══════════════ -->
+    <!-- 展开面板：MaxHeight + Opacity 过渡（展开/折叠动画） -->
+    <Style Selector="Border.anim-panel">
+      <Setter Property="ClipToBounds" Value="True"/>
+      <Style.Animations>
+        <!-- 无 Style.Animations，过渡由 Transitions 属性承担 -->
+      </Style.Animations>
+    </Style>
+
+    <!-- 表格行 hover 高亮 -->
+    <Style Selector="Border.duty-row">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.12"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.duty-row:pointerover">
+      <Setter Property="Background" Value="#16FFFFFF"/>
+    </Style>
+
+    <!-- 按钮 hover 微缩放（需要 RenderTransformOrigin 居中） -->
+    <Style Selector="Button.action-btn">
+      <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.action-btn:pointerover">
+      <Setter Property="RenderTransform" Value="scale(1.04)"/>
+    </Style>
+    <Style Selector="Button.action-btn:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.96)"/>
+    </Style>
+
+  </ci:SettingsPageBase.Styles>
 
   <TabControl>
 
-
-
-    <!-- ┌─────────────── 值日表 ───────────────┐ -->
-
-    <TabItem Header="📋 值日表">
-
+    <!-- ═══ 值日表 Tab ═══ -->
+    <TabItem FontSize="13" Header="值日表">
       <ScrollViewer>
-
         <StackPanel Margin="16" Spacing="12">
 
-
-
-          <!-- 轮换总设置 -->
-
-          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
-
+          <!-- 1. 轮换设置 -->
+          <Border Classes="card-1" Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
+            <Border.Transitions>
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15"/>
+              </Transitions>
+            </Border.Transitions>
             <StackPanel Spacing="8">
-
-              <TextBlock Text="间隔轮换设置" FontSize="15" FontWeight="Bold"/>
-
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="轮换设置" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Name="RefreshDisplayBtn" Classes="action-btn"
+                        Click="OnRefreshDisplay"
+                        ToolTip.Tip="立即将最新配置推送到主界面组件">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Name="RefreshIcon" Text="↻" FontSize="16" VerticalAlignment="Center"/>
+                    <TextBlock Name="RefreshLabel" Text="立即刷新" FontSize="13" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
               <TextBlock Name="StatusLabel" FontSize="13" Foreground="#AAFFFFFF" TextWrapping="Wrap"/>
-
-              <StackPanel Orientation="Horizontal" Spacing="12" FlowDirection="LeftToRight">
-
+              <StackPanel Orientation="Horizontal" Spacing="12">
                 <StackPanel Spacing="4">
-
                   <TextBlock Text="第一批起始日期" FontSize="12" Foreground="#AAFFFFFF"/>
-
                   <DatePicker Name="StartDatePicker" SelectedDateChanged="OnStartDateChanged"/>
-
                 </StackPanel>
-
                 <StackPanel Spacing="4">
-
                   <TextBlock Text="每批持续（天）" FontSize="12" Foreground="#AAFFFFFF"/>
-
-                  <!-- 整数输入，FormatString="0" 禁止小数显示，Increment=1 每次步进1天 -->
-
-                  <NumericUpDown Name="PeriodDaysSpin"
-
-                                 Minimum="1" Maximum="365"
-
-                                 Width="110"
-
-                                 Increment="1"
-
-                                 FormatString="0"/>
-
+                  <NumericUpDown Name="PeriodDaysSpin" Minimum="1" Maximum="365" Width="110" Increment="1" FormatString="0"/>
                 </StackPanel>
-
               </StackPanel>
-
             </StackPanel>
-
           </Border>
 
-
-
-          <!-- 批次管理 -->
-
-          <StackPanel Spacing="6">
-
+          <!-- 2. 批次管理 -->
+          <StackPanel Classes="card-sp-1" Spacing="6">
             <TextBlock Text="批次管理" FontSize="15" FontWeight="Bold"/>
-
             <StackPanel Orientation="Horizontal" Spacing="8">
-
               <ComboBox Name="GroupSelector" MinWidth="160"
-
-                        SelectionChanged="OnGroupChanged"
-
-                        PlaceholderText="选择批次…"/>
-
-              <Button Content="＋ 新建批次" Click="AddGroup"/>
-
-              <Button Content="重命名"       Click="RenameGroup"/>
-
-              <Button Content="删除批次" Foreground="Red" Click="RemoveGroup"/>
-
+                        SelectionChanged="OnGroupChanged" PlaceholderText="选择批次…"/>
+              <Button Content="新建批次" Classes="action-btn" Click="AddGroup"/>
+              <Button Content="重命名"   Classes="action-btn" Click="RenameGroup"/>
+              <Button Content="删除批次" Classes="action-btn" Foreground="Red" Click="RemoveGroup"/>
             </StackPanel>
-
           </StackPanel>
 
+          <!-- 3. 批次编辑区（展开/折叠动画用 MaxHeight + Opacity） -->
+          <Border Name="GroupEditorWrap" Classes="anim-panel card-2"
+                  MaxHeight="0" Opacity="0">
+            <Border.Transitions>
+              <Transitions>
+                <DoubleTransition Property="MaxHeight" Duration="0:0:0.28" Easing="SineEaseOut"/>
+                <DoubleTransition Property="Opacity"   Duration="0:0:0.2"/>
+              </Transitions>
+            </Border.Transitions>
 
+            <StackPanel Name="GroupEditor" Spacing="10">
 
-          <!-- 当前批次编辑区 -->
-
-          <StackPanel Name="GroupEditor" Spacing="8" IsVisible="False">
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-
-              <TextBlock Text="选择星期" FontSize="13" VerticalAlignment="Center"/>
-
-              <ComboBox Name="WeekSelector" Width="120" SelectionChanged="OnWeekChanged"/>
-
-            </StackPanel>
-
-
-
-            <ItemsControl Name="TimeSlotList">
-
-              <ItemsControl.ItemTemplate>
-
-                <DataTemplate DataType="{x:Type models:DutyTimeSlot}">
-
-                  <Border BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="4"
-
-                          Padding="12" Margin="0,0,0,10">
-
-                    <StackPanel Spacing="6">
-
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-
-                        <TextBlock Text="开始：" VerticalAlignment="Center"/>
-
-                        <TextBox Width="70" Text="{Binding StartText}" Watermark="08:00"/>
-
-                        <TextBlock Text="结束：" VerticalAlignment="Center"/>
-
-                        <TextBox Width="70" Text="{Binding EndText}"   Watermark="12:00"/>
-
-                        <Button Content="删除时间段" Foreground="Red"
-
-                                Tag="{Binding}" Click="RemoveTimeSlot"/>
-
-                      </StackPanel>
-
-                      <ItemsControl ItemsSource="{Binding Items}">
-
-                        <ItemsControl.ItemTemplate>
-
-                          <DataTemplate DataType="{x:Type models:DutyItem}">
-
-                            <StackPanel Spacing="4" Margin="0,3">
-
-                              <StackPanel Orientation="Horizontal" Spacing="4">
-
-                                <TextBox Width="100" Text="{Binding Project}" Watermark="项目名称"/>
-
-                                <TextBox Width="68"  Text="{Binding Person1}" Watermark="人员1"/>
-
-                                <TextBox Width="68"  Text="{Binding Person2}" Watermark="人员2"/>
-
-                                <TextBox Width="68"  Text="{Binding Person3}" Watermark="人员3"/>
-
-                                <Button Content="✕" Tag="{Binding}" Click="RemoveItem" Margin="4,0,0,0"/>
-
+              <!-- 3a. 本批次选项 -->
+              <Border Background="#10FFFFFF" CornerRadius="4" Padding="12,10">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="本批次选项" FontSize="13" FontWeight="SemiBold"/>
+                  <StackPanel Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                    <CheckBox Name="GroupReminderBox" Content="启用提醒"
+                              Checked="OnGroupReminderChanged" Unchecked="OnGroupReminderChanged"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <TextBlock Text="跳过：" VerticalAlignment="Center" FontSize="13"/>
+                      <Button Name="SkipDaysButton" MinWidth="120" Padding="8,4" Classes="action-btn">
+                        <Button.Flyout>
+                          <Flyout Placement="Bottom">
+                            <Border Background="#2D2D2D" Padding="10,8" CornerRadius="6">
+                              <StackPanel Spacing="4" MinWidth="80">
+                                <CheckBox Name="SkipMon" Content="周一" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipTue" Content="周二" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipWed" Content="周三" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipThu" Content="周四" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipFri" Content="周五" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipSat" Content="周六" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
+                                <CheckBox Name="SkipSun" Content="周日" Checked="OnSkipDayChanged" Unchecked="OnSkipDayChanged"/>
                               </StackPanel>
-
-                              <StackPanel Orientation="Horizontal" Spacing="6">
-
-                                <TextBlock Text="项目颜色：" VerticalAlignment="Center" FontSize="12"/>
-
-                                <ColorPicker Color="{Binding Color, Converter={StaticResource StringToColor}, Mode=TwoWay}"
-
-                                             IsAlphaEnabled="False"/>
-
-                              </StackPanel>
-
-                            </StackPanel>
-
-                          </DataTemplate>
-
-                        </ItemsControl.ItemTemplate>
-
-                      </ItemsControl>
-
-                      <Button Content="＋ 添加项目" HorizontalAlignment="Left"
-
-                              Tag="{Binding}" Click="AddItem"/>
-
+                            </Border>
+                          </Flyout>
+                        </Button.Flyout>
+                        <TextBlock Name="SkipDaysLabel" Text="（不跳过）"/>
+                      </Button>
                     </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
 
-                  </Border>
+              <!-- 3b. 天数配置总览表 -->
+              <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                <StackPanel>
+                  <Grid ColumnDefinitions="84,*,72" Background="#1AFFFFFF" MinHeight="36">
+                    <TextBlock Grid.Column="0" Text="  天数" VerticalAlignment="Center" FontSize="12" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="已配置时间段及项目" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Margin="10,0"/>
+                    <TextBlock Grid.Column="2" Text="操作" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold"/>
+                  </Grid>
+                  <ItemsControl Name="DayTableRows">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type local:DayItem}">
+                        <!-- Classes="duty-row" 触发 hover 高亮 -->
+                        <Border Classes="duty-row" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" MinHeight="38">
+                          <Grid ColumnDefinitions="84,*,72">
+                            <Border Grid.Column="0" Background="{Binding TodayBg}"/>
+                            <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                       VerticalAlignment="Center" Margin="10,0"
+                                       FontSize="13" FontWeight="{Binding TodayWeight}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Summary}"
+                                       VerticalAlignment="Center" Margin="10,4"
+                                       FontSize="12" TextWrapping="Wrap" Foreground="#CCFFFFFF"/>
+                            <Button Grid.Column="2" Content="编辑" Tag="{Binding}" Click="OnEditDay"
+                                    Classes="action-btn"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    FontSize="12" Padding="10,4"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
 
-                </DataTemplate>
+              <!-- 3c. 内联编辑面板（展开/折叠动画） -->
+              <Border Name="DayEditorWrap" Classes="anim-panel"
+                      MaxHeight="0" Opacity="0">
+                <Border.Transitions>
+                  <Transitions>
+                    <DoubleTransition Property="MaxHeight" Duration="0:0:0.25" Easing="SineEaseOut"/>
+                    <DoubleTransition Property="Opacity"   Duration="0:0:0.18"/>
+                  </Transitions>
+                </Border.Transitions>
 
-              </ItemsControl.ItemTemplate>
-
-            </ItemsControl>
-
-
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-
-              <Button Content="＋ 添加时间段" Click="AddTimeSlot"/>
-
-              <Button Content="💾 保存配置"   Click="Save"/>
+                <Border Name="DayEditorPanel"
+                        Background="#0FFFFFFF" BorderBrush="#44FFFFFF"
+                        BorderThickness="1" CornerRadius="6" Padding="14,10">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0" Name="EditorDayLabel"
+                                 FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <Button Grid.Column="1" Content="关闭" Click="CloseEditor"
+                              Classes="action-btn" FontSize="12" Padding="8,3"/>
+                    </Grid>
+                    <ItemsControl Name="TimeSlotList">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:DutyTimeSlot}">
+                          <Border BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="4"
+                                  Padding="12" Margin="0,0,0,8">
+                            <StackPanel Spacing="6">
+                              <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="开始：" VerticalAlignment="Center"/>
+                                <TextBox Width="70" Text="{Binding StartText}" Watermark="08:00"/>
+                                <TextBlock Text="结束：" VerticalAlignment="Center"/>
+                                <TextBox Width="70" Text="{Binding EndText}"   Watermark="12:00"/>
+                                <Button Content="删除时间段" Foreground="Red" Classes="action-btn"
+                                        Tag="{Binding}" Click="RemoveTimeSlot" FontSize="12"/>
+                              </StackPanel>
+                              <ItemsControl ItemsSource="{Binding Items}">
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate DataType="{x:Type models:DutyItem}">
+                                    <StackPanel Spacing="3" Margin="0,3">
+                                      <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBox Width="90" Text="{Binding Project}" Watermark="项目名称"/>
+                                        <TextBox Width="65" Text="{Binding Person1}" Watermark="人员1"/>
+                                        <TextBox Width="65" Text="{Binding Person2}" Watermark="人员2"/>
+                                        <TextBox Width="65" Text="{Binding Person3}" Watermark="人员3"/>
+                                        <Button Content="✕" Classes="action-btn" Tag="{Binding}" Click="RemoveItem"/>
+                                      </StackPanel>
+                                      <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="颜色：" VerticalAlignment="Center" FontSize="12"/>
+                                        <ColorPicker Color="{Binding Color, Converter={StaticResource StringToColor}, Mode=TwoWay}"
+                                                     IsAlphaEnabled="False"/>
+                                      </StackPanel>
+                                    </StackPanel>
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                              <Button Content="+ 添加项目" Classes="action-btn" Tag="{Binding}" Click="AddItem" FontSize="12"/>
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Content="+ 添加时间段" Classes="action-btn" Click="AddTimeSlot"/>
+                      <Button Content="保存"         Classes="action-btn" Click="Save"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </Border>
+              <!-- end DayEditorWrap -->
 
             </StackPanel>
-
-          </StackPanel>
-
-
+          </Border>
+          <!-- end GroupEditorWrap -->
 
         </StackPanel>
-
       </ScrollViewer>
-
     </TabItem>
 
-
-
-    <!-- ┌─────────────── 设置 ───────────────┐ -->
-
-    <TabItem Header="⚙️ 设置">
-
+    <!-- ═══ 设置 Tab ═══ -->
+    <TabItem FontSize="13" Header="设置">
       <ScrollViewer>
-
         <StackPanel Margin="16" Spacing="16">
 
-
-
           <!-- 提醒设置 -->
-
-          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
-
+          <Border Classes="card-1" Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
             <StackPanel Spacing="10">
-
               <TextBlock Text="提醒设置" FontSize="15" FontWeight="Bold"/>
-
-
-
-              <StackPanel Orientation="Horizontal" Spacing="10">
-
-                <CheckBox Name="EnableReminderBox"
-
-                          Content="在值日时段开始时发出提醒"
-
-                          IsChecked="{Binding EnableReminder}"
-
-                          Checked="OnReminderChanged"
-
-                          Unchecked="OnReminderChanged"/>
-
-              </StackPanel>
-
-
-
-              <StackPanel Orientation="Horizontal" Spacing="10"
-
-                          IsEnabled="{Binding EnableReminder}">
-
+              <CheckBox Name="EnableReminderBox"
+                        Content="全局提醒总开关（关闭后所有批次均不发提醒）"
+                        IsChecked="{Binding EnableReminder}"
+                        Checked="OnReminderChanged" Unchecked="OnReminderChanged"/>
+              <StackPanel IsEnabled="{Binding EnableReminder}" Spacing="8">
                 <CheckBox Name="EnableSoundBox"
-
                           Content="播放提醒语音（TTS 朗读值日内容）"
-
                           IsChecked="{Binding EnableReminderSound}"
-
-                          Checked="OnSoundChanged"
-
-                          Unchecked="OnSoundChanged"/>
-
+                          Checked="OnSoundChanged" Unchecked="OnSoundChanged"/>
+                <StackPanel IsEnabled="{Binding EnableReminderSound}" Spacing="4">
+                  <TextBlock Text="TTS 语音名称（留空 = 系统默认）" FontSize="12" Foreground="#AAFFFFFF"/>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBox Name="TtsVoiceBox" Width="240"
+                             Watermark="如：zh-CN-XiaoxiaoNeural"
+                             Text="{Binding TtsVoice}"
+                             LostFocus="OnTtsVoiceChanged"/>
+                    <ComboBox Name="TtsPresetPicker" PlaceholderText="常用预设…" Width="168"
+                              SelectionChanged="OnTtsPresetPicked">
+                      <ComboBoxItem Content="晓晓（XiaoxiaoNeural）" Tag="zh-CN-XiaoxiaoNeural"/>
+                      <ComboBoxItem Content="云希（YunxiNeural）"    Tag="zh-CN-YunxiNeural"/>
+                      <ComboBoxItem Content="云扬（YunyangNeural）"  Tag="zh-CN-YunyangNeural"/>
+                      <ComboBoxItem Content="晓伊（XiaoyiNeural）"   Tag="zh-CN-XiaoyiNeural"/>
+                    </ComboBox>
+                  </StackPanel>
+                  <TextBlock Text="※ 效果取决于 ClassIsland TTS 引擎是否支持 SSML。"
+                             FontSize="11" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+                </StackPanel>
               </StackPanel>
-
             </StackPanel>
-
           </Border>
-
-
 
           <!-- 数据管理 -->
-
-          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
-
+          <Border Classes="card-2" Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
             <StackPanel Spacing="10">
-
               <TextBlock Text="数据管理" FontSize="15" FontWeight="Bold"/>
-
-
-
               <StackPanel Orientation="Horizontal" Spacing="8">
-
-                <Button Content="📤 导出值日表"
-
-                        Click="ExportConfig"
-
-                        ToolTip.Tip="将当前配置导出为 JSON 文件"/>
-
-                <Button Content="🔄 重置所有配置"
-
-                        Foreground="Red"
-
-                        Click="ResetConfig"
-
+                <Button Content="导出配置" Classes="action-btn" Click="ExportConfig"
+                        ToolTip.Tip="将当前配置导出为新版 JSON 文件"/>
+                <Button Content="导入配置" Classes="action-btn" Click="ImportNewConfig"
+                        ToolTip.Tip="导入之前导出的新版 JSON（批次将追加）"/>
+                <Button Content="导入旧版" Classes="action-btn" Click="ImportLegacyConfig"
+                        ToolTip.Tip="导入旧版 duty.json，自动迁移为批次格式"/>
+                <Button Content="重置配置" Classes="action-btn" Foreground="Red" Click="ResetConfig"
                         ToolTip.Tip="清空所有批次和设置，不可恢复！"/>
-
               </StackPanel>
-
-
-
-              <TextBlock Name="ExportResultLabel"
-
-                         FontSize="12"
-
-                         Foreground="#AAFFFFFF"
-
-                         TextWrapping="Wrap"
-
-                         IsVisible="False"/>
-
+              <TextBlock Name="DataOpResultLabel" FontSize="12" Foreground="#AAFFFFFF"
+                         TextWrapping="Wrap" IsVisible="False"/>
             </StackPanel>
-
           </Border>
-
-
 
           <!-- 关于 -->
-
-          <Border Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
-
+          <Border Classes="card-3" Background="#18FFFFFF" CornerRadius="6" Padding="14,10">
             <StackPanel Spacing="4">
-
               <TextBlock Text="关于" FontSize="15" FontWeight="Bold"/>
-
-              <TextBlock Text="值日生名单插件 v1.1" FontSize="13"/>
-
-              <TextBlock Text="支持间隔轮换、时段提醒、自定义颜色。" FontSize="12" Foreground="#AAFFFFFF"/>
-
+              <TextBlock Text="DutyList 插件 v1.1.0.0" FontSize="13"/>
+              <TextBlock Text="支持批次轮换、按天配置、自定义跳过日期、批次级提醒、TTS 语音选择、精确时段调度。"
+                         FontSize="12" Foreground="#AAFFFFFF" TextWrapping="Wrap"/>
             </StackPanel>
-
           </Border>
 
-
-
         </StackPanel>
-
       </ScrollViewer>
-
     </TabItem>
 
-
-
   </TabControl>
-
-
-
 </ci:SettingsPageBase>

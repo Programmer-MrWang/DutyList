@@ -17,6 +17,9 @@ namespace DutyListPlugin;
 public class Plugin : PluginBase
 {
     public static DutyConfig Config { get; private set; } = new();
+
+    /// <summary>设置页点击"立即刷新"时触发，通知所有 DutyDisplayComponent 立即重绘。</summary>
+    public static event Action? DisplayRefreshRequested;
     private static string _configPath = "";
 
     public override void Initialize(HostBuilderContext context, IServiceCollection services)
@@ -58,4 +61,6 @@ public class Plugin : PluginBase
         if (!string.IsNullOrEmpty(_configPath))
             ConfigureFileHelper.SaveConfig(_configPath, Config);
     }
+
+    public static void TriggerDisplayRefresh() => DisplayRefreshRequested?.Invoke();
 }
