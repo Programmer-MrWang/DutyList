@@ -4,6 +4,7 @@ using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Extensions.Registry;
 using ClassIsland.Shared.Helpers;
 using DutyListPlugin.Components;
+using DutyListPlugin.Migration;
 using DutyListPlugin.Models;
 using DutyListPlugin.Notifications;
 using DutyListPlugin.Settings;
@@ -21,7 +22,28 @@ public class Plugin : PluginBase
     public override void Initialize(HostBuilderContext context, IServiceCollection services)
     {
         _configPath = Path.Combine(PluginConfigFolder, "duty.json");
-        Config = ConfigureFileHelper.LoadConfig<DutyConfig>(_configPath) ?? new DutyConfig();
+
+        // ── 加载配置 ──────────────────────────────────────────────────────
+        // 若文件为旧版格式（含 WeekConfig 但不含 Groups），先自动迁移再保存。
+        if (LegacyConfigMigrator.IsLegacyConfig(_configPath))
+        {
+            var migrated = LegacyConfigMigrator.Migrate(_configPath);
+            if (migrated != null)
+            {
+                Config = migrated;
+                // 立即将迁移结果写回磁盘，覆盖旧格式
+                ConfigureFileHelper.SaveConfig(_configPath, Config);
+            }
+            else
+            {
+                Config = new DutyConfig();
+            }
+        }
+        else
+        {
+            Config = ConfigureFileHelper.LoadConfig<DutyConfig>(_configPath) ?? new DutyConfig();
+        }
+
         Config.PropertyChanged += (_, _) => Save();
 
         services.AddSettingsPage<DutySettingsPage>();

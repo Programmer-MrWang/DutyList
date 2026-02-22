@@ -7,6 +7,8 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Attributes;
+using ClassIsland.Shared.Helpers;
+using DutyListPlugin.Migration;
 using DutyListPlugin.Models;
 
 namespace DutyListPlugin.Settings;
@@ -226,5 +228,88 @@ public partial class DutySettingsPage : SettingsPageBase
         ExportResultLabel.IsVisible = true;
 
         Plugin.Save();
+    }
+
+    // ══════════════ 旧版配置导入 ══════════════════════════════════════════
+
+    /// <summary>
+    /// 手动选取旧版 duty.json 并将其迁移合并到当前配置。
+    /// <para>
+    /// 旧版的 WeekConfig 将被转换为一个新的 <see cref="RotationGroup"/> 并追加到
+    /// <see cref="DutyConfig.Groups"/> 末尾；已有批次不受影响。
+    /// </para>
+    /// </summary>
+    private async void ImportLegacyConfig(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+
+            // 让用户选择旧版 duty.json 文件
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title           = "选择旧版值日表配置（duty.json）",
+                AllowMultiple   = false,
+                FileTypeFilter  = new[]
+                {
+                    new FilePickerFileType("JSON 配置") { Patterns = new[] { "*.json" } }
+                }
+            });
+
+            if (files.Count == 0) return;
+
+            // 获取本地路径
+            var localPath = files[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(localPath))
+            {
+                SetImportResult(false, "无法获取文件路径，请确保文件在本地磁盘上");
+                return;
+            }
+
+            // 校验是否为旧版格式
+            if (!LegacyConfigMigrator.IsLegacyConfig(localPath))
+            {
+                SetImportResult(false, "所选文件不是旧版配置格式，请确认是否选错了文件");
+                return;
+            }
+
+            // 执行迁移
+            var migrated = LegacyConfigMigrator.Migrate(localPath);
+            if (migrated == null || migrated.Groups.Count == 0)
+            {
+                SetImportResult(false, "配置文件内容为空或解析失败");
+                return;
+            }
+
+            // 将迁移出的批次追加到当前配置（保留已有批次）
+            int addedCount = 0;
+            foreach (var group in migrated.Groups)
+            {
+                // 自动命名：若"第1批"已存在则改为"第N批（导入）"
+                if (Plugin.Config.Groups.Count > 0)
+                    group.Name = $"第{Plugin.Config.Groups.Count + 1}批（旧版导入）";
+
+                Plugin.Config.Groups.Add(group);
+                addedCount++;
+            }
+
+            RefreshGroupSelector();
+            StatusLabel.Text = Plugin.Config.StatusText;
+            Plugin.Save();
+
+            SetImportResult(true, $"已成功导入 {addedCount} 个批次");
+        }
+        catch (Exception ex)
+        {
+            SetImportResult(false, $"导入出错：{ex.Message}");
+        }
+    }
+
+    private void SetImportResult(bool success, string message)
+    {
+        // 复用设置页已有的 ExportResultLabel 显示结果
+        ExportResultLabel.Text      = (success ? "✅ " : "❌ ") + message;
+        ExportResultLabel.IsVisible = true;
     }
 }
