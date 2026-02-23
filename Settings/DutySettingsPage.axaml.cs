@@ -27,7 +27,7 @@ public class DayItem
     public string TodayWeight  { get; set; } = "Normal";
 }
 
-[SettingsPageInfo("duty.list.plugin.settings", "DutyList 设置")]
+[SettingsPageInfo("dutylist.jimmyxiao.settings", "DutyList 设置")]
 public partial class DutySettingsPage : SettingsPageBase
 {
     private RotationGroup? _currentGroup;

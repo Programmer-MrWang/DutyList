@@ -1,125 +1,97 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Avalonia.Threading;
-using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Abstractions.Services.NotificationProviders;
+using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Models.Notification;
 using DutyListPlugin.Models;
 
 namespace DutyListPlugin.Notifications;
 
-/// <summary>
-/// 精确调度版：预读今天所有时间段的开始时刻，到点时直接发送提醒。
-/// 调度时将目标时间段随 Timer 一起存储，触发时不再做时间窗口判断，
-/// 避免系统负载导致 Timer 偏移而漏发。
-/// </summary>
+// ── Fix 1: 改为非泛型 NotificationProviderBase ─────────────────────────
+// 原来 NotificationProviderBase<object> 导致框架在反射/序列化 Settings 属性时
+// 静默失败，provider 无法正常注册到 NotificationHostService，
+// ShowNotification 永远不会被调用。
 [NotificationProviderInfo(
     "B1C2D3E4-F5A6-7890-ABCD-EF1234567890",
     "值日生提醒",
     "\uE9B0",
     "在值日时段开始时发出提醒")]
-public class DutyNotificationProvider : NotificationProviderBase<object>
+public class DutyNotificationProvider : NotificationProviderBase
 {
-    private readonly DispatcherTimer _timer = new() { IsEnabled = false };
+    // ── Fix 2: 轮询代替精确调度 ──────────────────────────────────────────
+    // 原来的精确调度逻辑中：
+    //   .Cast<(DateTime FireAt, DutyTimeSlot Slot)?>().FirstOrDefault()
+    // 对值类型元组做 nullable cast 在部分运行时会抛 InvalidCastException，
+    // 导致 ScheduleNext 抛异常后整个 provider 静默失效。
+    // 改为每 30 秒轮询，逻辑简单可靠，通知误差 ≤30 秒，完全可以接受。
+    private DispatcherTimer? _pollTimer;
 
-    // 本次调度的目标：要触发提醒的时间段 key（日期+起止），防止重复触发
-    private DutyTimeSlot? _pendingSlot;
-    private string        _lastFiredKey = "";
+    // 记录已触发的 key，避免同一时段重复发送（key 含日期，跨天自动失效）
+    private readonly HashSet<string> _firedKeys = new();
+    private string _firedDate = "";
 
     public DutyNotificationProvider()
     {
-        _timer.Tick += OnTick;
-        ScheduleNext();
+        // 必须在 UI 线程上创建 DispatcherTimer，
+        // 用 Post 确保此时 Avalonia UI 线程已就绪
+        Dispatcher.UIThread.Post(Initialize, DispatcherPriority.Background);
     }
 
-    // ── 精确调度 ──────────────────────────────────────────────────────────
-
-    private void ScheduleNext()
+    private void Initialize()
     {
-        _timer.Stop();
-        _pendingSlot = null;
+        _pollTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(30)
+        };
+        _pollTimer.Tick += OnPollTick;
+        _pollTimer.Start();
+    }
 
+    private void OnPollTick(object? sender, EventArgs e)
+    {
         if (!Plugin.Config.EnableReminder) return;
 
-        var now      = DateTime.Now;
-        var midnight = DateTime.Today.AddDays(1);
+        var now   = DateTime.Now;
+        var today = DateTime.Today;
 
-        // 收集今天所有待触发的 (触发时刻, 时间段) 对
-        var candidates = GetTodayStartsWithSlot();
-
-        // 找最近的未来触发点
-        var next = candidates
-            .Where(x => x.FireAt > now)
-            .OrderBy(x => x.FireAt)
-            .Cast<(DateTime FireAt, DutyTimeSlot Slot)?>()
-            .FirstOrDefault();
-
-        if (next.HasValue)
+        // 每天第一次轮询时清空已触发集合，避免无限增长
+        var dateStr = today.ToString("yyyyMMdd");
+        if (_firedDate != dateStr)
         {
-            _pendingSlot      = next.Value.Slot;
-            _timer.Interval   = next.Value.FireAt - now;
-            _timer.Tag        = "notify";
+            _firedKeys.Clear();
+            _firedDate = dateStr;
         }
-        else
-        {
-            // 今天没有更多时间段，等到明天 0 点重新调度
-            _timer.Interval = midnight - now;
-            _timer.Tag      = "midnight";
-        }
-
-        _timer.Start();
-    }
-
-    private void OnTick(object? sender, EventArgs e)
-    {
-        _timer.Stop();
-
-        if (_timer.Tag as string == "midnight")
-        {
-            ScheduleNext();
-            return;
-        }
-
-        // 直接用存好的 _pendingSlot 发送提醒，不再做时间窗口判断
-        if (_pendingSlot != null)
-            FireNotification(_pendingSlot);
-
-        ScheduleNext();   // 调度今天下一个时间段
-    }
-
-    // ── 收集今天所有触发点 ────────────────────────────────────────────────
-
-    private static List<(DateTime FireAt, DutyTimeSlot Slot)> GetTodayStartsWithSlot()
-    {
-        var result = new List<(DateTime, DutyTimeSlot)>();
-        var today  = DateTime.Today;
 
         var (group, dayIndex) = Plugin.Config.GetCurrentGroupAndDay();
-        if (group == null || dayIndex == 0 || !group.EnableReminder) return result;
-
-        if (!group.DayConfig.TryGetValue(dayIndex, out var slots)) return result;
+        if (group == null || dayIndex == 0 || !group.EnableReminder) return;
+        if (!group.DayConfig.TryGetValue(dayIndex, out var slots)) return;
 
         foreach (var slot in slots)
-            result.Add((today + slot.Start, slot));
+        {
+            var fireAt = today + slot.Start;
+            var key    = $"{dateStr}_{slot.Start}_{slot.End}";
 
-        return result;
+            // 在 [fireAt, fireAt+30s) 窗口内且未发过 → 发送
+            if (now >= fireAt && now < fireAt.AddSeconds(30) && !_firedKeys.Contains(key))
+            {
+                _firedKeys.Add(key);
+                FireNotification(slot);
+            }
+        }
     }
 
     // ── 发送提醒 ──────────────────────────────────────────────────────────
 
     private void FireNotification(DutyTimeSlot slot)
     {
-        // 全局开关二次确认（用户可能在等待期间关掉了提醒）
+        // 二次检查：防止两次轮询之间配置被关掉
         if (!Plugin.Config.EnableReminder) return;
 
         var (group, dayIndex) = Plugin.Config.GetCurrentGroupAndDay();
         if (group == null || dayIndex == 0 || !group.EnableReminder) return;
-
-        // 防重复：同一时间段只发一次
-        var key = $"{DateTime.Today:yyyyMMdd}_{slot.Start}_{slot.End}";
-        if (key == _lastFiredKey) return;
-        _lastFiredKey = key;
 
         var items = slot.Items
             .Where(x => !string.IsNullOrWhiteSpace(x.Project))
@@ -127,30 +99,33 @@ public class DutyNotificationProvider : NotificationProviderBase<object>
             {
                 var names = string.Join("、",
                     new[] { x.Person1, x.Person2, x.Person3 }
-                    .Where(n => !string.IsNullOrWhiteSpace(n)));
-                return string.IsNullOrWhiteSpace(names) ? x.Project : $"{x.Project}：{names}";
-            }).ToList();
+                        .Where(n => !string.IsNullOrWhiteSpace(n)));
+                return string.IsNullOrWhiteSpace(names)
+                    ? x.Project
+                    : $"{x.Project}：{names}";
+            })
+            .ToList();
 
         if (items.Count == 0) return;
 
+        // Fix 3: TimeSpan 格式化用 hh（原来上一版错误地改成了 HH，
+        //        HH 是 DateTime 专属格式符，对 TimeSpan 会抛 FormatException）。
         var timeLabel = $"{slot.Start:hh\\:mm}–{slot.End:hh\\:mm}";
         var body      = string.Join("  |  ", items);
         var speech    = BuildSpeechContent(items);
 
+        var mask = NotificationContent.CreateTwoIconsMask($"值日开始  {timeLabel}");
+        mask.Duration = TimeSpan.FromSeconds(4);
+
+        var overlay = NotificationContent.CreateSimpleTextContent(body);
+        overlay.Duration        = TimeSpan.FromSeconds(6);
+        overlay.SpeechContent   = Plugin.Config.EnableReminderSound ? speech : "";
+        overlay.IsSpeechEnabled = Plugin.Config.EnableReminderSound;
+
         ShowNotification(new NotificationRequest
         {
-            MaskContent = NotificationContent.CreateTwoIconsMask(
-                $"值日开始  {timeLabel}",
-                factory: x => x.Duration = TimeSpan.FromSeconds(4)),
-
-            OverlayContent = NotificationContent.CreateRollingTextContent(
-                body,
-                factory: x =>
-                {
-                    x.Duration        = TimeSpan.FromSeconds(6);
-                    x.SpeechContent   = Plugin.Config.EnableReminderSound ? speech : "";
-                    x.IsSpeechEnabled = Plugin.Config.EnableReminderSound;
-                })
+            MaskContent    = mask,
+            OverlayContent = overlay
         });
     }
 
