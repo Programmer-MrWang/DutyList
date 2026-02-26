@@ -13,7 +13,7 @@ namespace DutyListPlugin.Components;
 [ComponentInfo(
     "68F4A3B2-C1D5-4E7A-9F0B-2A6E3D8C1B45",
     "值日生名单",
-    "\uE9B0",
+    "\uEC4E",
     "显示当前轮换批次、当前时段的值日生信息")]
 public partial class DutyDisplayComponent : ComponentBase
 {
