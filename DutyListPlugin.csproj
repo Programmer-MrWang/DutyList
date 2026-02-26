@@ -7,11 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DutyListPlugin</AssemblyName>
     <RootNamespace>DutyListPlugin</RootNamespace>
-    <EnableDynamicLoading>True</EnableDynamicLoading>
-    <SelfContained>false</SelfContained>
-    <Version>1.1.0.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,11 +19,9 @@
     <None Include="manifest.yml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <!-- 插件图标：256×256 PNG，构建时自动复制到输出目录 -->
     <None Include="icon.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <!-- README 文档 -->
     <None Include="README.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
