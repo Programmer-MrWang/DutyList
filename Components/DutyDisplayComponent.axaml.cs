@@ -13,11 +13,10 @@ namespace DutyListPlugin.Components;
 [ComponentInfo(
     "68F4A3B2-C1D5-4E7A-9F0B-2A6E3D8C1B45",
     "值日生名单",
-    "\uEC4E",
+    "\uECC5",
     "显示当前轮换批次、当前时段的值日生信息")]
 public partial class DutyDisplayComponent : ComponentBase
 {
-    // 精确调度：每次只设置一个单次 Timer，到点后重新调度下一个触发时刻
     private readonly DispatcherTimer _preciseTimer = new() { IsEnabled = false };
 
     public DutyDisplayComponent()
