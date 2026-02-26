@@ -116,8 +116,8 @@
                         Click="OnRefreshDisplay"
                         ToolTip.Tip="立即将最新配置推送到主界面组件">
                   <StackPanel Orientation="Horizontal" Spacing="5">
-                    <TextBlock Name="RefreshIcon" Text="↻" FontSize="16" VerticalAlignment="Center"/>
-                    <TextBlock Name="RefreshLabel" Text="立即刷新" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Name="RefreshIcon" Text="&#xE0B5;" FontSize="17" VerticalAlignment="Center"/>
+                    <TextBlock Name="RefreshLabel" Text="立即刷新" FontSize="15" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </Grid>
